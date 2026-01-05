@@ -1,12 +1,16 @@
-import User from "../models/user.model";
+import { generateToken } from "../lib/utils.js";
+import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 export const signup = async (req, res) => {
-  const { fullName, email, pa } = req.body;
+  const { fullName, email, password } = req.body;
   try {
+    if (!fullName || !email || !password) {
+      return res.status(400).json({ message: "All fields required" });
+    }
     if (password.length < 6) {
       return res
         .status(400)
-        .json2({ message: "password must be at least 6 characters" });
+        .json({ message: "password must be at least 6 characters" });
     }
     const user = await User.findOne({ email });
     if (user) return res.status(400).json({ message: "Email already exists" });
@@ -20,11 +24,21 @@ export const signup = async (req, res) => {
     });
     if (newUser) {
       //generate jwt token here
+      generateToken(newUser._id, res);
+      await newUser.save();
+      res.status(201).json({
+        _id: newUser._id,
+        fullName: newUser.fullName,
+        email: newUser.email,
+        profilePic: newUser.profilePic,
+      });
     } else {
-      res.status(400).json({ message: "invalid user data" });
+      res.status(400).json({ message: "All fields are required" });
     }
-  } catch (error) {}
-  res.send("signup route");
+  } catch (error) {
+    console.log("Erro in signup controller", error.message);
+    res.status(500).json({ message: "internal server Error" });
+  }
 };
 export const login = (req, res) => {
   res.send("login route");
