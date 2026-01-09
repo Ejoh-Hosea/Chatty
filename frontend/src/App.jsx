@@ -17,6 +17,9 @@ const App = () => {
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
   console.log(authUser);
   if (isCheckingAuth && !authUser)
     return (
