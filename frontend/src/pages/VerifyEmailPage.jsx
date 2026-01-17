@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { axiosInstance } from "../lib/axios";
 import { Mail, CheckCircle, XCircle, Loader2, ArrowRight } from "lucide-react";
-import toast from "react-hot-toast";
 import { useAuthStore } from "../store/useAuthStore";
 
 const VerifyEmailPage = () => {
@@ -10,7 +9,7 @@ const VerifyEmailPage = () => {
   const navigate = useNavigate();
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState(null); // 'success', 'error', or null
-  const [pendingEmail, setPendingEmail] = useState(
+  const [pendingEmail, _setPendingEmail] = useState(
     localStorage.getItem("pendingEmail") || ""
   );
   const [isResending, setIsResending] = useState(false);
@@ -25,36 +24,33 @@ const VerifyEmailPage = () => {
 
   // Verify email if token is in URL
   useEffect(() => {
+    const verifyToken = async (token) => {
+      setIsVerifying(true);
+      try {
+        await axiosInstance.get(`/auth/verify-email?token=${token}`);
+        setVerificationStatus("success");
+        localStorage.removeItem("pendingEmail");
+
+        // Auto redirect to home after 3 seconds
+        setTimeout(() => {
+          checkAuth();
+          navigate("/");
+        }, 3000);
+      } catch {
+        setVerificationStatus("error");
+      } finally {
+        setIsVerifying(false);
+      }
+    };
+
     const token = searchParams.get("token");
     if (token && !isVerifying) {
       verifyToken(token);
     }
-  }, [searchParams]);
-
-  const verifyToken = async (token) => {
-    setIsVerifying(true);
-    try {
-      const res = await axiosInstance.get(`/auth/verify-email?token=${token}`);
-      setVerificationStatus("success");
-      toast.success(res.data.message || "Email verified successfully!");
-      localStorage.removeItem("pendingEmail");
-
-      // Auto redirect to home after 3 seconds
-      setTimeout(() => {
-        checkAuth();
-        navigate("/");
-      }, 3000);
-    } catch (error) {
-      setVerificationStatus("error");
-      toast.error(error.response?.data?.message || "Verification failed");
-    } finally {
-      setIsVerifying(false);
-    }
-  };
+  }, [isVerifying, searchParams, checkAuth, navigate]);
 
   const handleResendEmail = async () => {
     if (!pendingEmail) {
-      toast.error("Email not found. Please sign up again.");
       return;
     }
 
@@ -63,9 +59,8 @@ const VerifyEmailPage = () => {
       await axiosInstance.post("/auth/resend-verification", {
         email: pendingEmail,
       });
-      toast.success("Verification email resent! Check your inbox.");
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to resend email");
+      console.error("Failed to resend email:", error);
     } finally {
       setIsResending(false);
     }
